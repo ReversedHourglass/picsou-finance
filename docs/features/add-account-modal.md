@@ -1,6 +1,6 @@
 # Feature: Add Account Modal
 
-> Last updated: 2026-09-03
+> Last updated: 2026-10-07
 
 ## Context
 
@@ -10,7 +10,7 @@ Creating a new account or connecting a sync provider required two separate entry
 
 The `AddAccountModal` is a state-machine dialog with two levels:
 
-1. **Selector screen** — buttons in a grid (Banks, Exchanges, Wallets, Trade Republic, BoursoBank, Bourse Direct, DEGIRO, Interactive Brokers, Amundi, Finary, Property, Manual). Each sync button enters its wizard or panel; the Manual button opens the existing `AccountForm` in a separate dialog.
+1. **Selector screen** — buttons in a grid (Banks, Exchanges, Wallets, Trade Republic, BoursoBank, Bourse Direct, DEGIRO, Interactive Brokers, SimpleFIN, Amundi, Finary, Property, Manual). Each sync button enters its wizard or panel; the Manual button opens the existing `AccountForm` in a separate dialog.
 2. **Wizard screens** — Each sync type has its own compact wizard with a back button. Each wizard manages its own loading and error state inline.
 
 ### Key files
@@ -20,6 +20,7 @@ The `AddAccountModal` is a state-machine dialog with two levels:
 - `frontend/src/features/sync/hooks.ts` — all sync mutation hooks reused by the wizards
 - `frontend/src/components/ui/input-otp.tsx` — shadcn InputOTP component (installed for TR PIN and verification code)
 - `frontend/src/components/sync/IbkrPanel.tsx` — extracted IBKR connection panel (source of truth shared with `IbkrTab`)
+- `frontend/src/components/sync/SimplefinPanel.tsx` — SimpleFIN connection panel, shared with `SimplefinTab` the same way
 
 ### Flow
 
@@ -34,6 +35,7 @@ AccountsPage → "Add account" button
        │    └─ pick chain → address + label → add → success
        ├─ DEGIRO → DegiroPanel (onConnected → handleDone)
        ├─ Interactive Brokers → IbkrPanel (onConnected → handleDone)
+       ├─ SimpleFIN → SimplefinPanel (onConnected → handleDone)
        ├─ Amundi → AmundiPanel (onConnected → handleDone)
        ├─ Trade Republic → TradeRepublicWizard
        │    └─ phone + PIN (InputOTP 4-digit) → verification code (InputOTP 4-digit) → success
@@ -117,6 +119,14 @@ four locales, and the partial maps are gone.
 | Per-wizard error state (no global overlay) | Global `isPending` unmounts the wizard, losing error state (React no-op on unmounted setter) | Global `onPending` callback |
 | `mutation.isPending` on buttons for loading | Keeps the wizard mounted throughout; spinner is inline on the submit button | Parent-level overlay |
 
+## Account types
+
+`ASSURANCE_VIE` and `SCPI` joined the picker on 2026-08-13 for the investment pyramid
+(see [wealth-pyramid.md](./wealth-pyramid.md)). Both need an entry in `ACCOUNT_TYPES`,
+in `AccountForm`'s zod enum, in `AccountsPage`'s `ASSET_FILTER_MAP`/`TYPE_TO_GROUP`, and
+an `accountTypes.*` label in all four locales — `src/lib/constants.test.ts` fails if
+`ACCOUNT_TYPES` misses one, and the locale parity test fails if a label does.
+
 ## Gotchas / Pitfalls
 
 - **Never replace wizard content with a parent-level overlay during mutations.** When the wizard unmounts and remounts after an error, any `setError(...)` called on the old instance is silently ignored by React 18. Each wizard must stay mounted while its mutation is in flight.
@@ -135,7 +145,7 @@ four locales, and the partial maps are gone.
 
 - `frontend/src/lib/utils.test.ts` — `formatCurrency` regression case: an invalid code does not throw
   and the raw code appears in the output (issue #9).
-- `frontend/src/components/shared/AddAccountModal.test.tsx` — Trade Republic wizard regression cases; Bourse Direct, Amundi, and IBKR wizard flow tests (mock panel → `onOpenChange(false)`).
+- `frontend/src/components/shared/AddAccountModal.test.tsx` — Trade Republic wizard regression cases; Bourse Direct, Amundi, IBKR and SimpleFIN wizard flow tests (mock panel → `onOpenChange(false)`).
 - `backend/src/test/java/com/picsou/validation/CurrencyValidatorTest.java` — accepts valid ISO 4217
   codes, rejects unknown ones, leaves null/blank to `@NotBlank`.
 
